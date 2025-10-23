@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pitch Contour Lab</title>
+    <!-- Load TailwindCSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Load Tone.js (ESM module) -->
+    <script type="module">
+        import * as Tone from "https://cdn.skypack.dev/tone@14.7.77";
+        window.Tone = Tone;
+    </script>
+    <style>
+        /* Using Inter font from Tailwind's default config */
+        body {
+            font-family: 'Inter', sans-serif;
+            overscroll-behavior: none;
+        }
+        /* Custom style for the animated "look up" arrow */
+        @keyframes point-up {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+        .animate-point-up {
+            animation: point-up 1.5s ease-in-out infinite;
+        }
+    </style>
+</head>
+<body class="h-full bg-gray-900 text-gray-100 flex items-center justify-center p-4">
+
+    <!-- Main App Container -->
+    <div id="app-container" class="w-full max-w-4xl mx-auto h-full flex flex-col">
+
+        <!-- ===== Instrument Selection Screen ===== -->
+        <div id="instrument-selection" class="flex flex-col items-center justify-center h-full">
+            <h1 class="text-4xl font-bold mb-8 text-white">Pitch Contour Lab</h1>
+            <p class="text-xl text-gray-400 mb-12">Please select your instrument:</p>
+            
+            <!-- New Mic Permission Error/Status -->
+            <div id="mic-status" class="hidden w-full max-w-lg mb-8 p-4 rounded-lg bg-gray-800 text-center">
+                <p id="mic-status-text" class="text-lg text-yellow-400">Requesting microphone access...</p>
+            </div>
+
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-6 w-full">
+                <!-- Instrument Cards -->
+                <button data-instrument="Trumpet" class="instrument-card bg-gray-800 p-6 rounded-2xl shadow-lg hover:bg-blue-700 hover:shadow-xl transition-all transform hover:-translate-y-1">
+                    <svg class="w-20 h-20 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6.13a1 1 0 011.64-.77l8 6a1 1 0 010 1.54l-8 6A1 1 0 019 19z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h2v8H7zM5 10h.01v4H5z"></path></svg>
+                    <span class="text-2xl font-semibold">Trumpet</span>
+                </button>
+                <button data-instrument="French Horn" class="instrument-card bg-gray-800 p-6 rounded-2xl shadow-lg hover:bg-blue-700 hover:shadow-xl transition-all transform hover:-translate-y-1">
+                    <svg class="w-20 h-20 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 10a3 3 0 013-3h5a3 3 0 013 3v1a3 3 0 01-3 3h-1.382a1 1 0 00-.894.553l-1.448 2.894a1 1 0 01-1.789 0L13.276 14.553A1 1 0 0012.382 14H12a3 3 0 01-3-3v-1zm0 0a3 3 0 00-3 3v1a3 3 0 003 3h1.382a1 1 0 01.894.553l1.448 2.894a1 1 0 001.789 0l1.448-2.894A1 1 0 0114.618 14H15a3 3 0 003-3v-1a3 3 0 00-3-3h-5a3 3 0 00-3 3z"></path></svg>
+                    <span class="text-2xl font-semibold">French Horn</span>
+                </button>
+                <button data-instrument="Trombone" class="instrument-card bg-gray-800 p-6 rounded-2xl shadow-lg hover:bg-blue-700 hover:shadow-xl transition-all transform hover:-translate-y-1">
+                    <svg class="w-20 h-20 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l4 4m0 0l4-4m-4 4v10m0-10L3 8m4 4h10a2 2 0 002-2V6a2 2 0 00-2-2H7a2 2 0 00-2 2v4a2 2 0 002 2z"></path></svg>
+                    <span class="text-2xl font-semibold">Trombone</span>
+                </button>
+                <button data-instrument="Tuba" class="instrument-card bg-gray-800 p-6 rounded-2xl shadow-lg hover:bg-blue-700 hover:shadow-xl transition-all transform hover:-translate-y-1">
+                    <svg class="w-20 h-20 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20v-6m0 0V4m0 6h4m-4 0H6m4 0v6m0-6V4m0 6h4m0 0h6m-6 0v6m0-6V4m0 6H6m4 0h4m0 0h6m-6 0v6m0 0v-6m0 0V4"></path></svg>
+                    <span class="text-2xl font-semibold">Tuba</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- ===== Main App Screen ===== -->
+        <div id="app-screen" class="hidden h-full flex flex-col">
+            <!-- Header -->
+            <header class="flex-shrink-0 flex items-center justify-between mb-4">
+                <h1 class="text-3xl font-bold">
+                    Pitch Contour: <span id="instrument-name" class="text-blue-400"></span>
+                </h1>
+                <button id="change-instrument-btn" class="text-sm text-gray-400 hover:text-white transition-colors">Change Instrument</button>
+            </header>
+            
+            <!-- Canvas -->
+            <div class="flex-grow bg-gray-800 rounded-2xl shadow-inner overflow-hidden mb-4">
+                <canvas id="pitch-canvas" class="w-full h-full"></canvas>
+            </div>
+
+            <!-- Controls -->
+            <div class="flex-shrink-0 grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="flex flex-col">
+                    <label for="exercise-select" class="text-sm font-medium text-gray-400 mb-1">Exercise</label>
+                    <select id="exercise-select" class="bg-gray-700 border border-gray-600 text-white text-lg rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-3">
+                        <!-- Options populated by JS -->
+                    </select>
+                </div>
+                <button id="hear-pattern-btn" class="bg-gray-700 text-white text-lg font-semibold py-3 px-6 rounded-lg shadow-md hover:bg-gray-600 transition-all h-full mt-auto">
+                    Hear Pattern
+                </button>
+                <button id="start-stop-btn" class="bg-blue-600 text-white text-lg font-bold py-3 px-6 rounded-lg shadow-md hover:bg-blue-700 transition-all h-full mt-auto">
+                    Start Listening
+                </button>
+            </div>
+        </div>
+
+        <!-- ===== Microphone Permission Modal ===== -->
+        <!-- REMOVED THE ENTIRE #mic-modal DIV -->
+
+    </div>
+
+    <script type="module">
+        // === App State ===
+        let selectedInstrument = null;
+        let isListening = false;
+        let pitchDetect, userMedia, synth;
+        let canvas, ctx;
+        let animationFrameId;
+        let userPitchHistory = [];
+        let currentExercise = null;
+        let exerciseStartTime = 0;
+        let canvasResizeObserver;
+
+        // === Constants ===
+        const { Tone, } = window; // Get Tone.js from window
+        const PITCH_TOLERANCE_CENTS = 30; // 30 cents sharp or flat
+        const CANVAS_DURATION_SEC = 5; // Show 5 seconds of contour on canvas
+        const MIN_DECIBELS = -60; // Silence threshold
+        
+        // Note ranges for canvas display (logarithmic)
+        const CANVAS_MIN_FREQ = Tone.Frequency("C2").toFrequency(); // 65 Hz
+        const CANVAS_MAX_FREQ = Tone.Frequency("C6").toFrequency(); // 1046 Hz
+        const CANVAS_LOG_RANGE = Math.log2(CANVAS_MAX_FREQ) - Math.log2(CANVAS_MIN_FREQ);
+
+        // === Data ===
+        const INSTRUMENTS = {
+            "Trumpet": { name: "Trumpet", transposition: -2, clef: "treble" }, // Bb instrument, down 2 semitones
+            "French Horn": { name: "French Horn", transposition: -7, clef: "treble" }, // F instrument, down 7 semitones
+            "Trombone": { name: "Trombone", transposition: 0, clef: "bass" }, // C instrument, bass clef
+            "Tuba": { name: "Tuba", transposition: 0, clef: "bass" } // C instrument, bass clef
+        };
+
+        const EXERCISES = [
+            {
+                name: "Simple Up-Down (C-D-C)",
+                clef: ["treble"], // Playable by treble clef insts
+                notes: [
+                    { note: "C4", duration: 1.5 },
+                    { note: "D4", duration: 1.5 },
+                    { note: "C4", duration: 1.5 }
+                ]
+            },
+            {
+                name: "Simple Slur (C-E-C)",
+                clef: ["treble"],
+                notes: [
+                    { note: "C4", duration: 1.5 },
+                    { note: "E4", duration: 1.5 },
+                    { note: "C4", duration: 1.5 }
+                ]
+            },
+            {
+                name: "Five Note Scale (C-G)",
+                clef: ["treble"],
+                notes: [
+                    { note: "C4", duration: 0.8 },
+                    { note: "D4", duration: 0.8 },
+                    { note: "E4", duration: 0.8 },
+                    { note: "F4", duration: 0.8 },
+                    { note: "G4", duration: 0.8 }
+                ]
+            },
+            {
+                name: "Low Range Up-Down (F-G-F)",
+                clef: ["bass"], // Playable by bass clef insts
+                notes: [
+                    { note: "F3", duration: 1.5 },
+                    { note: "G3", duration: 1.5 },
+                    { note: "F3", duration: 1.5 }
+                ]
+            },
+            {
+                name: "Low Range Arpeggio (Bb-D-F)",
+                clef: ["bass"],
+                notes: [
+                    { note: "Bb2", duration: 1.0 },
+                    { note: "D3", duration: 1.0 },
+                    { note: "F3", duration: 1.0 },
+                    { note: "D3", duration: 1.0 },
+                    { note: "Bb2", duration: 1.0 }
+                ]
+            }
+        ];
+
+        // === DOM Elements ===
+        const instrumentSelectionScreen = document.getElementById('instrument-selection');
+        const appScreen = document.getElementById('app-screen');
+        // Removed Modal Elements
+        const micStatus = document.getElementById('mic-status');
+        const micStatusText = document.getElementById('mic-status-text');
+        const instrumentNameEl = document.getElementById('instrument-name');
+        const changeInstrumentBtn = document.getElementById('change-instrument-btn');
+        const exerciseSelect = document.getElementById('exercise-select');
+        const hearPatternBtn = document.getElementById('hear-pattern-btn');
+        const startStopBtn = document.getElementById('start-stop-btn');
+
+        // === Initialization ===
+        function init() {
+            // Setup Instrument Selection
+            document.querySelectorAll('.instrument-card').forEach(card => {
+                card.addEventListener('click', () => {
+                    handleInstrumentSelect(card.dataset.instrument);
+                });
+            });
+
+            // Removed Modal Button Listeners
+            
+            // Setup App Screen Buttons
+            changeInstrumentBtn.addEventListener('click', resetApp);
+            hearPatternBtn.addEventListener('click', playPattern);
+            startStopBtn.addEventListener('click', toggleListening);
+            exerciseSelect.addEventListener('change', (e) => {
+                currentExercise = EXERCISES.find(ex => ex.name === e.target.value);
+                // Draw the new target immediately
+                if (canvas) drawTargetContour();
+            });
+
+            // Setup Canvas
+            canvas = document.getElementById('pitch-canvas');
+            ctx = canvas.getContext('2d');
+            
+            // Setup canvas resize observer
+            setupCanvasResizeObserver();
+        }
+
+        function setupCanvasResizeObserver() {
+            // Create an observer to resize canvas when its container changes
+            canvasResizeObserver = new ResizeObserver(entries => {
+                if (!entries || entries.length === 0) {
+                    return;
+                }
+                const entry = entries[0];
+                // Get container dimensions
+                const { width, height } = entry.contentRect;
+                
+                // Get pixel density
+                const dpr = window.devicePixelRatio || 1;
+                
+                // Set canvas backing store size
+                canvas.width = width * dpr;
+                canvas.height = height * dpr;
+                
+                // Scale context
+                ctx.scale(dpr, dpr);
+                
+                // Redraw
+                if (currentExercise) {
+                    drawTargetContour();
+                }
+            });
+            // Observe the canvas's PARENT element
+            canvasResizeObserver.observe(canvas.parentElement);
+        }
+
+        // === App Flow Functions ===
+        
+        function handleInstrumentSelect(instrumentName) {
+            selectedInstrument = INSTRUMENTS[instrumentName];
+            instrumentNameEl.textContent = selectedInstrument.name;
+
+            // Show status message
+            micStatusText.textContent = "Requesting microphone access... Please click 'Allow' in the pop-up.";
+            micStatusText.classList.remove('text-red-500');
+            micStatusText.classList.add('text-yellow-400');
+            micStatus.classList.remove('hidden');
+        
+            // Call requestMicPermission directly
+            requestMicPermission();
+        }
+
+        async function requestMicPermission() {
+            try {
+                // Initialize Tone.js audio context
+                await Tone.start();
+                
+                // Create UserMedia and open it
+                userMedia = new Tone.UserMedia();
+                await userMedia.open();
+                
+                // Success!
+                instrumentSelectionScreen.classList.add('hidden'); // Hide selection screen
+                micStatus.classList.add('hidden'); // Hide status message
+                appScreen.classList.remove('hidden');
+                appScreen.classList.add('flex'); // Make it flex
+                
+                setupAudioEngine();
+                populateExercises();
+                
+                // Trigger a resize draw
+                setTimeout(() => {
+                    if (currentExercise) drawTargetContour();
+                }, 100);
+
+            } catch (err) {
+                console.error("Mic permission error:", err);
+                // Show error message on the instrument selection screen
+                micStatusText.textContent = "Permission Denied. To use the app, please click the lock icon in your address bar and set Microphone to 'Allow'.";
+                micStatusText.classList.remove('text-yellow-400');
+                micStatusText.classList.add('text-red-500');
+                micStatus.classList.remove('hidden');
+            }
+        }
+
+        function resetApp() {
+            if (isListening) {
+                toggleListening(); // Stop listening
+            }
+            if (userMedia) {
+                userMedia.close();
+            }
+            if (pitchDetect) {
+                pitchDetect.dispose();
+            }
+            if(synth) {
+                synth.dispose();
+            }
+            
+            selectedInstrument = null;
+            userMedia = null;
+            pitchDetect = null;
+            synth = null;
+            
+            appScreen.classList.add('hidden');
+            appScreen.classList.remove('flex');
+            instrumentSelectionScreen.classList.remove('hidden');
+            micStatus.classList.add('hidden'); // Hide mic status on reset
+        }
+
+        function populateExercises() {
+            exerciseSelect.innerHTML = ''; // Clear existing
+            const compatibleExercises = EXERCISES.filter(ex => 
+                ex.clef.includes(selectedInstrument.clef)
+            );
+
+            compatibleExercises.forEach(ex => {
+                const option = document.createElement('option');
+                option.value = ex.name;
+                option.textContent = ex.name;
+                exerciseSelect.appendChild(option);
+            });
+            
+            // Set the first exercise as default
+            if (compatibleExercises.length > 0) {
+                currentExercise = compatibleExercises[0];
+            } else {
+                currentExercise = null; // No compatible exercises
+            }
+        }
+
+        // === Audio Engine ===
+        
+        function setupAudioEngine() {
+            // Create a synth to play patterns
+            synth = new Tone.Synth({
+                oscillator: { type: 'triangle' },
+                envelope: { attack: 0.02, decay: 0.1, sustain: 0.3, release: 0.5 }
+            }).toDestination();
+            
+            // Create PitchDetect
+            // Note: Tone.PitchDetect is an abstract class. We need a concrete implementation.
+            // For simplicity, we'll use a common pitch detection library logic.
+            // Let's use Tone's built-in Analyser for frequency data
+            // This is a simplification; a real app would use a more robust algo
+            // like Yin or FFT. Tone.js's PitchDetect isn't a drop-in.
+            // Let's use Tone.Analyser('fft', 2048) and find the peak.
+            // ---
+            // CORRECTION: Let's use `Tone.PitchDetect` as intended, which uses `dywapitchtrack`.
+            // We need to import the algorithm separately.
+            // ---
+            // SIMPLIFICATION: The `tone` package (as imported) includes `PitchDetect`
+            // which seems to bundle its own algorithm (likely Yin or similar).
+            // Let's try to use it as intended.
+            try {
+                pitchDetect = new Tone.PitchDetect();
+                userMedia.connect(pitchDetect);
+                // Set silence threshold
+                pitchDetect.set({
+                    decibels: MIN_DECIBELS
+                });
+
+            } catch (e) {
+                console.error("Error initializing PitchDetect:", e);
+                // Fallback or error message
+                alert("Could not initialize pitch detection. Please refresh and try again.");
+            }
+        }
+        
+        function playPattern() {
+            if (!currentExercise || !synth) return;
+
+            const now = Tone.now();
+            let currentTime = now;
+            
+            // Stop any previous transport
+            Tone.Transport.stop();
+            Tone.Transport.cancel();
+            
+            currentExercise.notes.forEach(noteData => {
+                const freq = noteToConcertFreq(noteData.note);
+                synth.triggerAttackRelease(freq, noteData.duration * 0.9, currentTime);
+                currentTime += noteData.duration;
+            });
+
+            Tone.Transport.start();
+        }
+        
+        function toggleListening() {
+            if (!pitchDetect) {
+                console.error("PitchDetect not initialized.");
+                return;
+            }
+
+            isListening = !isListening;
+            if (isListening) {
+                // START
+                startStopBtn.textContent = 'Stop Listening';
+                startStopBtn.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+                startStopBtn.classList.add('bg-red-600', 'hover:bg-red-700');
+                
+                // Clear history and start drawing
+                userPitchHistory = [];
+                exerciseStartTime = Date.now();
+                drawLoop();
+
+            } else {
+                // STOP
+                startStopBtn.textContent = 'Start Listening';
+                startStopBtn.classList.add('bg-blue-600', 'hover:bg-blue-700');
+                startStopBtn.classList.remove('bg-red-600', 'hover:bg-red-700');
+                
+                // Stop the draw loop
+                if (animationFrameId) {
+                    cancelAnimationFrame(animationFrameId);
+                }
+                // Clear the canvas and redraw just the target
+                drawTargetContour();
+            }
+        }
+
+        // === Drawing & Visualization ===
+
+        function drawLoop() {
+            if (!isListening) return;
+
+            // Get dimensions (logical, not backing store)
+            const { width, height } = canvas.parentElement.getBoundingClientRect();
+            
+            // --- 1. Get Current State ---
+            const elapsedTimeSec = (Date.now() - exerciseStartTime) / 1000;
+            const currentPitch = pitchDetect.getPitch();
+            const currentDecibels = pitchDetect.getDecibels();
+            
+            // Get target note/freq at this exact time
+            const target = getTargetAtTime(elapsedTimeSec);
+            let onPitch = false;
+            
+            // Only add to history if sound is detected
+            let userY = null;
+            if (currentDecibels > MIN_DECIBELS && currentPitch > 0) {
+                userY = freqToY(currentPitch);
+                
+                if (target) {
+                    const targetFreq = noteToConcertFreq(target.note);
+                    const centsDiff = Tone.Frequency(currentPitch).toCents() - Tone.Frequency(targetFreq).toCents();
+                    if (Math.abs(centsDiff) < PITCH_TOLERANCE_CENTS) {
+                        onPitch = true;
+                    }
+                }
+            }
+
+            // --- 2. Clear and Redraw Target ---
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawTargetContour(); // Draw the static target first
+
+            // --- 3. Update and Draw User History ---
+            // Calculate current X position based on time
+            const pixelsPerSecond = width / CANVAS_DURATION_SEC;
+            const currentX = elapsedTimeSec * pixelsPerSecond;
+
+            // Add new point to history
+            // We store the logical (x, y) and the on-pitch status
+            if(userY !== null) {
+                userPitchHistory.push({ x: currentX, y: userY, onPitch: onPitch });
+            } else {
+                userPitchHistory.push(null); // Gap in sound
+            }
+            
+            // Draw the user's pitch history path
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            let lastOnPitch = false;
+            let lastPoint = null;
+
+            for (const point of userPitchHistory) {
+                if(point === null) {
+                    // End the current line segment
+                    if(lastPoint) ctx.stroke();
+                    lastPoint = null;
+                    continue;
+                }
+
+                if (lastPoint === null) {
+                    // Start a new line segment
+                    ctx.beginPath();
+                    ctx.moveTo(point.x, point.y);
+                } else {
+                    // Change stroke color if onPitch status changes
+                    if (point.onPitch !== lastOnPitch) {
+                        ctx.stroke(); // End previous segment
+                        ctx.beginPath(); // Start new segment
+                        ctx.moveTo(lastPoint.x, lastPoint.y);
+                    }
+                    ctx.lineTo(point.x, point.y);
+                }
+                
+                ctx.strokeStyle = point.onPitch ? '#22c55e' : '#ef4444'; // green-500 or red-500
+                lastOnPitch = point.onPitch;
+                lastPoint = point;
+            }
+            ctx.stroke(); // Draw the last segment
+
+            // --- 4. Draw "Now" Marker ---
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+            ctx.fillRect(currentX, 0, 2, height);
+            
+            // Draw the user's current pitch dot
+            if(userY !== null) {
+                ctx.beginPath();
+                ctx.arc(currentX, userY, 8, 0, 2 * Math.PI);
+                ctx.fillStyle = onPitch ? '#22c55e' : '#ef4444';
+                ctx.fill();
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            }
+
+            // --- 5. Check for End ---
+            const totalExerciseDuration = currentExercise.notes.reduce((sum, n) => sum + n.duration, 0);
+            if (elapsedTimeSec > totalExerciseDuration && elapsedTimeSec > CANVAS_DURATION_SEC) {
+                toggleListening(); // Stop
+            } else {
+                // Request next frame
+                animationFrameId = requestAnimationFrame(drawLoop);
+            }
+        }
+        
+        function drawTargetContour() {
+            if (!ctx || !currentExercise) return;
+            
+            const { width, height } = canvas.parentElement.getBoundingClientRect();
+            
+            // Clear canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Get logical pixel dimensions
+            const pixelsPerSecond = width / CANVAS_DURATION_SEC;
+            
+            // Draw note labels on the Y axis
+            drawNoteLabels(height);
+            
+            let currentX = 0;
+            
+            for (const noteData of currentExercise.notes) {
+                const targetFreq = noteToConcertFreq(noteData.note);
+                const targetY = freqToY(targetFreq);
+                
+                // Calculate tolerance in pixels
+                const freqHigh = Tone.Frequency(targetFreq).transpose(PITCH_TOLERANCE_CENTS / 100);
+                const freqLow = Tone.Frequency(targetFreq).transpose(-PITCH_TOLERANCE_CENTS / 100);
+                const yHigh = freqToY(freqHigh);
+                const yLow = freqToY(freqLow);
+                const zoneHeight = yLow - yHigh;
+
+                const noteWidth = noteData.duration * pixelsPerSecond;
+                
+                // Draw the target zone
+                ctx.fillStyle = 'rgba(0, 150, 255, 0.2)'; // Faded blue
+                ctx.fillRect(currentX, yHigh, noteWidth, zoneHeight);
+                
+                // Draw the center line
+                ctx.fillStyle = 'rgba(0, 180, 255, 0.8)';
+                ctx.fillRect(currentX, targetY - 1, noteWidth, 2);
+                
+                // Draw note name
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+                ctx.font = '16px Inter';
+                ctx.textAlign = 'left';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(noteData.note, currentX + 8, targetY);
+                
+                currentX += noteWidth;
+            }
+        }
+        
+        function drawNoteLabels(height) {
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+            ctx.font = '12px Inter';
+            ctx.textAlign = 'right';
+            ctx.textBaseline = 'middle';
+            
+            for (let note of ["C2", "G2", "C3", "G3", "C4", "G4", "C5", "G5", "C6"]) {
+                const y = freqToY(Tone.Frequency(note).toFrequency());
+                if (y > 0 && y < height) {
+                    ctx.beginPath();
+                    ctx.moveTo(0, y);
+                    ctx.lineTo(canvas.width, y); // Use logical width
+                    ctx.stroke();
+                    ctx.fillText(note, 30, y);
+                }
+            }
+        }
+
+        // === Utility Functions ===
+        
+        /**
+         * Converts a written note (e.g., "C4") to its concert pitch frequency.
+         */
+        function noteToConcertFreq(note) {
+            if (!selectedInstrument) return Tone.Frequency(note).toFrequency();
+            return Tone.Frequency(note).transpose(selectedInstrument.transposition).toFrequency();
+        }
+
+        /**
+         * Converts a frequency to a Y-coordinate on the canvas (logarithmic).
+         */
+        function freqToY(freq) {
+            const { height } = canvas.parentElement.getBoundingClientRect();
+            if (freq < CANVAS_MIN_FREQ) return height; // Off the bottom
+            if (freq > CANVAS_MAX_FREQ) return 0;      // Off the top
+            
+            const logFreq = Math.log2(freq);
+            const relativePos = (logFreq - Math.log2(CANVAS_MIN_FREQ)) / CANVAS_LOG_RANGE;
+            return height * (1 - relativePos); // Invert Y axis
+        }
+        
+        /**
+         * Finds the target note for a given time in the exercise.
+         */
+        function getTargetAtTime(elapsedTime) {
+            if (!currentExercise) return null;
+            
+            let timeAccumulator = 0;
+            for (const noteData of currentExercise.notes) {
+                if (elapsedTime >= timeAccumulator && elapsedTime < timeAccumulator + noteData.duration) {
+                    return noteData;
+                }
+                timeAccumulator += noteData.duration;
+            }
+            return null; // After exercise is over
+        }
+
+        // === Start the App ===
+        init();
+
+    </script>
+</body>
+</html>
+
